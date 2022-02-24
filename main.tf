@@ -1,11 +1,3 @@
-provider "kubernetes" {
-
-    host     = var.host
-    token    = var.token
-    insecure = var.insecure
-
-}
-
 resource "kubernetes_service_account" "fluentd" {
 
     metadata {
@@ -72,14 +64,7 @@ resource "kubernetes_config_map" "fluentd" {
 
     data = {
 
-        "fluent.conf" = <<EOF
-
-            <match fluent.**>
-                # this tells fluentd to not output its log on stdout
-                @type null
-            </match>
-
-        EOF
+        "fluent.conf" = var.fluent_conf
 
     }
 
@@ -139,7 +124,8 @@ resource "kubernetes_daemonset" "fluentd" {
                 container {
 
                     name  = "fluentd"
-                    image = "fluent/fluentd-kubernetes-daemonset:v1.11-debian-elasticsearch7-1"
+                    #                    image = "fluent/fluentd-kubernetes-daemonset:v1.11.5-debian-elasticsearch7-1.1"
+                    image = "fluent/fluentd-kubernetes-daemonset:v1.14.3-debian-elasticsearch7-1.0"
 
                     env {
 
@@ -197,18 +183,34 @@ resource "kubernetes_daemonset" "fluentd" {
 
                     }
 
+                    env {
+
+                        name = "K8S_NODE_NAME"
+
+                        value_from {
+
+                            field_ref {
+
+                                field_path = "spec.nodeName"
+
+                            }
+
+                        }
+
+                    }
+
                     resources {
 
                         limits = {
 
-                            cpu    = "200m"
+                            cpu    = "100m"
                             memory = "200Mi"
 
                         }
 
                         requests = {
 
-                            cpu    = "200m"
+                            cpu    = "100m"
                             memory = "200Mi"
 
                         }
@@ -230,13 +232,13 @@ resource "kubernetes_daemonset" "fluentd" {
 
                     }
 
-#                    volume_mount {
-#
-#                        mount_path = "/fluentd/etc"
-#                        sub_path   = "fluentd.conf"
-#                        name       = "fluentd-config"
-#
-#                    }
+                    volume_mount {
+
+                        mount_path = "/fluentd/etc/custom.conf"
+                        sub_path   = "custom.conf"
+                        name       = "fluentd-config"
+
+                    }
 
                 }
 
@@ -266,17 +268,17 @@ resource "kubernetes_daemonset" "fluentd" {
 
                 }
 
-#                volume {
-#
-#                    name = "fluentd-config"
-#
-#                    config_map {
-#
-#                        name = "fluentd-config"
-#
-#                    }
-#
-#                }
+                volume {
+
+                    name = "fluentd-config"
+
+                    config_map {
+
+                        name = "fluentd-config"
+
+                    }
+
+                }
 
             }
 
